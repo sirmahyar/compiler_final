@@ -1,0 +1,633 @@
+/*
+Compiler Project
+Designed By Majid Shamoushaki & Mahyar Salamat
+Dr.Shiry
+2016
+*/
+
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <string>
+#include <vector>
+
+using namespace std;
+
+int ctr = 0;
+string keywords[12] = { "main" , "if" , "else" , "while" , "int" ,  "char" , "bool" , "void" , "null" , "float", "true", "false"} ;
+string operators[13] = { "=" , "+" , "-" , "/" , "*" , ">" , "<" , "==" , "!=" , "&&" , "||" , ">=" , "<=" } ;
+string punctuations[6] = { "{" , "}" , "(" , ")" , "," , ";" } ;
+string type[] = {"int", "char", "float", "bool"};
+
+class table {public:
+	int index;
+	string type;
+	int ival;
+	float fval;
+	char cval;
+	string token;
+	table* next;
+	table* prev;
+	table()
+	{
+		type = "";
+		ival = 0;
+		fval = 0.0;
+		cval = 0;
+		token = "";
+		next = NULL;
+		prev = NULL;
+	}
+};
+
+struct word
+{
+    string token ;
+    string attribute ;
+    word* prev ;
+    word* next ;
+    word()
+    {
+        this->prev = NULL ;
+        this->next = NULL ;
+    }
+};
+
+void pre_process()
+{
+    bool flag = 0, err = 0;
+    char* head;
+    int pos , p, ctr = 0, a, size;
+    string str, temp, tmp;
+    ifstream file;
+    file.open("first code.txt");
+    while(!file.eof())
+    {
+        getline(file, str);
+        ctr++;
+        p = str.find("main", 0);
+        pos = str.find("include", 0);
+        if(pos != -1)
+        {
+            if(!(str[pos - 1] == '#'))
+				cout << "Error in line " << ctr << endl << "# required:" << str << endl;
+            if((a = str.find("<", pos)) == -1 || str.find(">", a + 1) == -1 || flag == 1)
+                cout << "Error in line " << ctr << endl;
+        }
+        if(p != -1)
+        {
+        	tmp = str.substr(0, p);
+            if(tmp.find("void", 0) == -1)
+                cout << "Error in line " << ctr << endl;
+                cerr << "We should put void before main" << endl ;
+            flag = 1;
+        }
+    }
+    if(flag == 0)
+    	cout << "Error \"main\" function not found!" << endl;
+    ifstream f;
+    ofstream fout("second code.txt");
+    file.seekg(0, ios::beg);
+    while(!file.eof())
+    {
+		getline(file, str);
+		if(str.find("include", 0) != -1 && (p = str.find("<", 0)) != -1)
+		{
+	    	temp = "include\\";
+			a = p + 1;
+			while(a < str.length() - 1)
+			{
+				temp += str[a];
+				a++;
+			}
+			f.open(temp.c_str());
+			while(!f.eof())
+			{
+				getline(f, tmp);
+				fout << tmp << endl;
+			}
+			f.close();
+		}
+    }
+    file.close();
+    f.open("first code.txt");
+   // cout<< f.tellg();
+    while(!f.eof())
+    {
+    	getline(f, tmp);
+    	if(tmp.find("include", 0) == -1)
+    	fout << tmp << endl;
+	}
+    fout.close();
+}
+
+int ifIn ( string word , string keys[] , int wordsNumber )
+{
+    for ( int i = 0 ;  i  < wordsNumber ; i++ )
+    {
+        if ( word == keys[i] )
+            return 1 ;
+    }
+    return 0 ;
+}
+
+int tokenize ( string thisWord , word* current )
+{
+    if ( ifIn( thisWord , keywords , 12) )
+    {
+        current->token = "keyWords" ;
+        current->attribute = thisWord ;
+    }
+    else if ( ifIn( thisWord , operators , 13 ) )
+    {
+        current->token = "operators" ;
+        current->attribute = thisWord ;
+    }
+    else if ( ifIn( thisWord.substr(0, 1) , punctuations , 6 ))
+    {
+    	bool flag = 1;
+    	for (int i = 0; i < thisWord.length(); i++)
+    		if(!ifIn(thisWord.substr(i, 1), punctuations, 6))
+    			flag = 0;
+    	if (flag == 1)
+    	{
+	        current->token = "punctuations" ;
+	        current->attribute = thisWord ;
+		}
+		else
+		{
+			cout << "Error in line " << ctr << " "<< thisWord << " is unknown!" << endl;
+			return -1;
+		}
+    }
+    else if(isdigit(thisWord[0]))
+    {
+    	bool flag = 1;
+    	for(int i = 1; i < thisWord.length(); i++)
+    		if(!isdigit(thisWord[i]) && thisWord[i] != 46)
+    			flag = 0;
+    	if(flag == 1)
+    	{
+	    	current->token = "number";
+	    	current->attribute = thisWord;
+		}
+		else
+		{
+			cout << "Error! in line "<< ctr << " " << thisWord << " is neither an identifier nor a number"<< endl;
+			return -1;
+		}
+	}
+	else if(thisWord[0] == '\'')
+	{
+		current->token = "char";
+		current->attribute = thisWord[1];
+	}
+    else
+    {
+    	bool flag = 1;
+
+    	for(int i = 0; i < thisWord.length(); i++)
+    		if(!isdigit(thisWord[i]) && !(thisWord[i] >= 65 && thisWord[i] <= 90) && !(thisWord[i] >= 97 && thisWord[i] <= 122))
+    			flag = 0;
+    	if(flag == 1)
+    	{
+	        current->token = "identifires" ;
+	        current->attribute = thisWord ;
+		}
+		else
+		{
+			cout << "Error in line " << ctr << " " << thisWord << " is unknown" << endl;
+			return -1;
+		}
+    }
+    return 1;
+}
+
+word* tokenLine ( string line , word* curr )
+{
+    stringstream tmp ;
+    word* tmpptr ;
+    string thisWord ;
+    ctr++;
+    tmp << line ;
+    while ( !tmp.eof())
+    {
+        tmp >> thisWord ;
+        if(tokenize( thisWord , curr) != -1)
+        {
+	        tmpptr = curr ;
+	        curr->next = new word;
+	        curr = curr->next ;
+	        curr->prev = tmpptr ;
+		}
+    }
+    return curr;
+}
+
+
+void exp_check(int l_counter, word* mahyar)
+{
+
+    if( mahyar->attribute == "return" )
+    {
+        mahyar = mahyar->next ;
+        if( mahyar->attribute == ";")
+        {
+            mahyar = mahyar->next;
+            cout << "Ok" << endl ;
+        }
+        else if ( mahyar->token != "number")
+        {
+            cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+            cerr << "We should put ; in the end of every line :)" << endl ;
+        }
+        else
+        {
+            cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+            cerr << "We should not return any thing" << endl ;
+        }
+    }
+
+    if( mahyar->attribute == "else" )
+    {
+        mahyar = mahyar->next;
+        cout << "Ok" << endl ;
+    }
+	if( mahyar->attribute == "{" || mahyar->attribute == "}")
+        {
+            mahyar = mahyar->next;
+            cout << "Ok" << endl ;
+        }
+	// float f ;
+    if( !mahyar->token.compare("keyWords") && ( !mahyar->attribute.compare("int") || !mahyar->attribute.compare("float") || !mahyar->attribute.compare("char") || !mahyar->attribute.compare("bool") ) )
+       {
+           mahyar = mahyar->next ;
+            if( !mahyar->token.compare("identifires"))
+            {
+                mahyar = mahyar->next ;
+                if( !mahyar->token.compare("punctuations") && !mahyar->attribute.compare(";") )
+                {
+                	mahyar = mahyar->next;
+                    cout << "ok" << endl ;
+                }
+                else if(mahyar->attribute.compare("="))
+                {
+                    cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+                    cerr << "We should put ; in the end of every line :)" << endl ;
+                }
+                else if( !mahyar->attribute.compare("=") )
+	            {
+	                mahyar = mahyar->next ;
+	                if( !mahyar->token.compare("number") || !mahyar->token.compare("identifires") )
+	                {
+	                    mahyar = mahyar->next ;
+	                    if( mahyar->attribute == ";")
+                        {
+                            cout << "Ok" << endl ;
+                        }
+	                    if( !mahyar->attribute.compare("+") || !mahyar->attribute.compare("-") || !mahyar->attribute.compare("*") || !mahyar->attribute.compare("/"))
+	                    {
+	                        mahyar = mahyar->next ;
+	                        if( !mahyar->token.compare("identifires") || !mahyar->token.compare("number"))
+	                        {
+	                            mahyar = mahyar->next ;
+	                            if( !mahyar->attribute.compare(";"))
+	                            {
+	                            	mahyar = mahyar->next;
+	                                cout << "ok" << endl ;
+	                            }
+	                            else
+	                            {
+	                                cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+	                                cerr << "We should put ; in the end of every line :)" << endl ;
+	                            }
+	                        }
+	                        else
+	                        {
+	                            cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+	                            cerr << "We should put num or id" << endl ;
+	                        }
+	                    }
+	                    else if(mahyar->attribute != ";")
+	                    {
+	                        if( mahyar->token == "number" || mahyar->token == "keyWords" || mahyar->token == "identifires" || mahyar->token == "punctuations" )
+                            {
+	                        cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+	                        cerr << "We should put + or - or * or /" << endl ;
+                            }
+                            else
+                            {
+                                cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+                                cerr << "We should put ; in the end of every line" << endl ;
+                            }
+	                    }
+	                }
+	                else if(mahyar->token != "char" && mahyar->token != "keyWords")
+	                {
+	                    cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+	                    cerr << "We should put num or id" << endl ;
+	                }
+	                else if(mahyar->token == "char")
+		            {
+	                    mahyar = mahyar->next ;
+	                    if( !mahyar->attribute.compare(";"))
+	                    {
+	                    	mahyar = mahyar->next;
+	                        cout << "Ok" << endl ;
+	                    }
+	                    else
+	                    {
+	                        cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+	                        cerr << "We should put ; in the end of every line :)" << endl ;
+	                    }
+	                }
+	                else if(mahyar->token != "identifier" && mahyar->token != "number" && mahyar->token != "keyWords")
+	                {
+	                    cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+	                    cerr << "We should put char" << endl ;
+	                }
+	                else if( !mahyar->attribute.compare("true") || !mahyar->attribute.compare("false"))
+	                {
+	                    mahyar = mahyar->next ;
+	                    if( !mahyar->attribute.compare(";"))
+	                    {
+	                    	mahyar = mahyar->next;
+	                        cout << "Ok" << endl ;
+	                    }
+	                    else
+	                    {
+	                        cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+	                        cerr << "We should put ; in the end of every line" << endl ;
+	                    }
+	                }
+	                else
+	                {
+	                    cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+	                    cerr << "We should put true or false" << endl ;
+	                }
+	            }
+	            else
+	            {
+	                cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+	                cerr << "We should put =" << endl ;
+	            }
+            }
+            else
+            {
+                cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+                cerr << "We should put id after this keywords : int,float,char,bool,return " << endl ;
+            }
+       }
+
+// a = b + 3 ;
+        else if( !mahyar->token.compare("identifires") )
+        {
+            mahyar = mahyar->next ;
+            if( !mahyar->attribute.compare("=") )
+            {
+                mahyar = mahyar->next ;
+                if( !mahyar->token.compare("number") || !mahyar->token.compare("identifires") )
+                {
+                    mahyar = mahyar->next ;
+                    if( !mahyar->attribute.compare("+") || !mahyar->attribute.compare("-") || !mahyar->attribute.compare("*") || !mahyar->attribute.compare("/"))
+                    {
+                        mahyar = mahyar->next ;
+                        if( !mahyar->token.compare("identifires") || !mahyar->token.compare("number"))
+                        {
+                            mahyar = mahyar->next ;
+                            if( !mahyar->attribute.compare(";"))
+                            {
+                            	mahyar = mahyar->next;
+                                cout << "ok" << endl ;
+                            }
+                            else
+                            {
+                                cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+                                cerr << "We should put ; in the end of every line :)" << endl ;
+                            }
+                        }
+                        else
+                        {
+                            cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+                            cerr << "We should put num or id" << endl ;
+                        }
+                    }
+                    else if ( mahyar->attribute != ";")
+                    {
+                        cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+                        cerr << "We should put + or - or * or /" << endl ;
+                    }
+                    else if ( mahyar->attribute == ";")
+                    {
+                        mahyar = mahyar->next ;
+                        cout << "Ok" << endl ;
+                    }
+                }
+                else if(mahyar->token != "char" && mahyar->token != "keyWords")
+                {
+                    cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+                    cerr << "We should put num or id or char or bool" << endl ;
+                }
+                else if(mahyar->token == "char")
+                {
+                	mahyar = mahyar->next;
+                	if(mahyar->attribute == ";")
+                	{
+                		mahyar = mahyar->next;
+                		cout << "Ok" << endl;
+					}
+					else
+					{
+						cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+                        cerr << "We should put ; in the end of every line :)" << endl ;
+					}
+				}
+				else if(mahyar->attribute == "true" || mahyar->attribute == "false")
+				{
+					mahyar = mahyar->next;
+					if(mahyar->attribute == ";")
+                	{
+                		mahyar = mahyar->next;
+                		cout << "Ok" << endl;
+					}
+					else
+					{
+						cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+                        cerr << "We should put ; in the end of every line :)" << endl ;
+					}
+				}
+
+            }
+            else
+            {
+                cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+                cerr << "We should put =" << endl ;
+            }
+        }
+}
+
+void con_check(int l_count, word* mahyar)
+{
+
+//if conditions
+	if(mahyar->attribute == "if")
+	{
+		mahyar = mahyar->next;
+		if(mahyar->attribute == "(")
+		{
+			mahyar = mahyar->next;
+		    if( !mahyar->token.compare("identifires"))
+		    {
+		        mahyar = mahyar->next ;
+		        if( !mahyar->attribute.compare(">") || !mahyar->attribute.compare("<") || !mahyar->attribute.compare("==") || !mahyar->attribute.compare("!=") || !mahyar->attribute.compare(">=") || !mahyar->attribute.compare("<=") || !mahyar->attribute.compare("&&") || !mahyar->attribute.compare("||") )
+		        {
+		            mahyar = mahyar->next ;
+		            if( !mahyar->token.compare("identifires") || !mahyar->token.compare("number"))
+		            {
+		            	mahyar = mahyar->next;
+		            	if( mahyar->attribute == ")")
+		            	{
+		            		mahyar = mahyar->next;
+		            		cout << "Ok" << endl;
+						}
+						else
+						{
+							cout << "Error in line \t" << l_count << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+			                cerr << "We should put ) to end condition" << endl ;
+						}
+		            }
+		            else
+		            {
+		                cout << "Error in line \t" << l_count << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+		                cerr << "We should put id or num" << endl ;
+		            }
+		        }
+		        else
+		        {
+		            cout << "Error in line \t" << l_count << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+		            cerr << "We should put operator for complete condition" << endl ;
+		        }
+		    }
+		    else
+		    {
+		    	cout << "Error in line \t" << l_count << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+		        cerr << "We should put id or num" << endl ;
+			}
+		}
+		else
+		{
+			cout << "Error in line \t" << l_count << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
+		    cerr << "We should put ( to start condition" << endl ;
+		}
+	}
+}
+
+int main ()
+{
+    pre_process() ;
+	word* mahyar ;
+    ifstream fin ;
+    fin.open( "second code.txt" ) ;
+    fin.seekg(0, ios::beg);
+    string thisLine;
+    word anchor, *curr = &anchor, * tmp;
+    int secondflag = 1 ;
+    bool a = 1;
+    while(!fin.eof())
+	{
+	    getline ( fin , thisLine ) ;
+	    tmp = tokenLine( thisLine , curr );
+	    if ( secondflag == 1)
+        {
+            mahyar = curr ;
+            secondflag = 0 ;
+        }
+	    while ( curr != NULL )
+	    {
+	        cout << curr->token << "\t" << curr->attribute << endl ;
+	        curr = curr->next ;
+	    }
+	    curr = tmp;
+    }
+    word* temp = &anchor;
+    while(temp->next != NULL)
+    {
+    	temp = temp->next;
+	}
+	temp = &anchor;
+	int sz = 0;
+	table first,*tbl = &first;
+	while(temp->next != NULL)
+	{
+		if(ifIn(temp->attribute, type, 4))
+		{
+			tbl = &first;
+			if(temp->next->token == "identifires")
+			{
+				bool flag = 1;
+				while(tbl->next != NULL)
+				{
+					if(temp->next->attribute == tbl->token)
+						flag = 0;
+					tbl = tbl->next;
+				}
+				if(flag == 1)
+				{
+					tbl->token = temp->next->attribute;
+					tbl->type = temp->attribute;
+					tbl->next = new table;
+				}
+			}
+		}
+		temp = temp->next;
+	}
+	tbl = &first;
+	while(tbl->next != NULL)
+	{
+		cout << tbl->token << " " << tbl->type << endl;
+		tbl = tbl->next;
+	}
+	cout << "\n \n" ;
+	string tmp2 ;
+	int l_counter = 0 ;
+	fin.close();
+	fin.open("second code.txt");
+	fin.seekg(0, fin.beg);
+	while( fin.tellg() != -1 )
+	{
+		word* tkn = new word;
+		getline( fin,tmp2 );
+		tokenLine(tmp2, tkn);
+		l_counter ++ ;
+        if( mahyar->attribute == "void" )
+            {
+                mahyar = mahyar->next ;
+                if( mahyar->attribute == "main")
+                {
+                    mahyar = mahyar->next ;
+                    if( mahyar->attribute == "(")
+                    {
+                        mahyar = mahyar->next ;
+                        if( mahyar->attribute == ")")
+                        {
+                            mahyar = mahyar->next ;
+                            cout << "ok" << endl ;
+                        }
+                    }
+                }
+            }
+		else if( !tmp2.empty() )
+		{
+			if( tkn->attribute != "if" )
+			{
+				exp_check(l_counter, tkn) ;
+			}
+			else if( tkn->attribute == "if" )
+            {
+				con_check(l_counter, tkn);
+            }
+		}
+	}
+
+    return 0 ;
+}
