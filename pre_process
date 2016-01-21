@@ -1,0 +1,67 @@
+void pre_process()
+{
+    bool flag = 0, err = 0;
+    char* head;
+    int pos , p, ctr = 0, a, size;
+    string str, temp, tmp;
+    ifstream file;
+    file.open("first code.txt");
+    while(!file.eof())
+    {
+        getline(file, str);
+        ctr++;
+        p = str.find("main", 0);
+        pos = str.find("include", 0);
+        if(pos != -1)
+        {
+            if(!(str[pos - 1] == '#'))
+				cout << "Error in line " << ctr << endl << "# required:" << str << endl;
+            if((a = str.find("<", pos)) == -1 || str.find(">", a + 1) == -1 || flag == 1)
+                cout << "Error in line " << ctr << endl;
+        }
+        if(p != -1)
+        {
+        	tmp = str.substr(0, p);
+            if(tmp.find("void", 0) == -1)
+                cout << "Error in line " << ctr << endl;
+                cerr << "We should put void before main" << endl ;
+            flag = 1;
+        }
+    }
+    if(flag == 0)
+    	cout << "Error \"main\" function not found!" << endl;
+    ifstream f;
+    ofstream fout("second code.txt");
+    file.seekg(0, ios::beg);
+    while(!file.eof())
+    {
+		getline(file, str);
+		if(str.find("include", 0) != -1 && (p = str.find("<", 0)) != -1)
+		{
+	    	temp = "include\\";
+			a = p + 1;
+			while(a < str.length() - 1)
+			{
+				temp += str[a];
+				a++;
+			}
+			f.open(temp.c_str());
+			while(!f.eof())
+			{
+				getline(f, tmp);
+				fout << tmp << endl;
+			}
+			f.close();
+		}
+    }
+    file.close();
+    f.open("first code.txt");
+    cout<< f.tellg();
+    while(!f.eof())
+    {
+    	getline(f, tmp);
+    	if(tmp.find("include", 0) == -1)
+    	fout << tmp << endl;
+	}
+    fout.close();
+}
