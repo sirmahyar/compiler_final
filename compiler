@@ -128,7 +128,7 @@ int ifIn ( string word , string keys[] , int wordsNumber )
         if ( word == keys[i] )
             return 1 ;
     }
-    return 0 ;
+	return 1 ;
 }
 
 int tokenize ( string thisWord , word* current )
