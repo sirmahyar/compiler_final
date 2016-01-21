@@ -111,7 +111,7 @@ void pre_process()
     }
     file.close();
     f.open("first code.txt");
-    cout<< f.tellg();
+   // cout<< f.tellg();
     while(!f.eof())
     {
     	getline(f, tmp);
@@ -412,10 +412,15 @@ void exp_check(int l_counter, word* mahyar)
                             cerr << "We should put num or id" << endl ;
                         }
                     }
-                    else
+                    else if ( mahyar->attribute != ";")
                     {
                         cout << "Error in line \t" << l_counter << "\t" << mahyar->token << " " << mahyar->attribute << "\t" ;
                         cerr << "We should put + or - or * or /" << endl ;
+                    }
+                    else if ( mahyar->attribute == ";")
+                    {
+                        mahyar = mahyar->next ;
+                        cout << "Ok" << endl ;
                     }
                 }
                 else if(mahyar->token != "char" && mahyar->token != "keyWords")
